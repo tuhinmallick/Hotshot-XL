@@ -478,8 +478,10 @@ class HotshotXLControlNetPipeline(
         control_guidance_start=0.0,
         control_guidance_end=1.0,
     ):
-        if (callback_steps is None) or (
-            callback_steps is not None and (not isinstance(callback_steps, int) or callback_steps <= 0)
+        if (
+            callback_steps is None
+            or not isinstance(callback_steps, int)
+            or callback_steps <= 0
         ):
             raise ValueError(
                 f"`callback_steps` has to be a positive integer but is {callback_steps} of type"
@@ -552,41 +554,7 @@ class HotshotXLControlNetPipeline(
             or is_compiled
             and isinstance(self.controlnet._orig_mod, ControlNetModel)
         ):
-
             assert len(control_images) == video_length
-            # for image in control_images:
-            #     self.check_image(image, prompt, prompt_embeds)
-        elif (
-            isinstance(self.controlnet, MultiControlNetModel)
-            or is_compiled
-            and isinstance(self.controlnet._orig_mod, MultiControlNetModel)
-        ):
-            ...
-            # todo
-            #
-            # if not isinstance(image, list):
-            #     raise TypeError("For multiple controlnets: `image` must be type `list`")
-            #
-            # # When `image` is a nested list:
-            # # (e.g. [[canny_image_1, pose_image_1], [canny_image_2, pose_image_2]])
-            # elif any(isinstance(i, list) for i in image):
-            #     raise ValueError("A single batch of multiple conditionings are supported at the moment.")
-            # elif len(image) != len(self.controlnet.nets):
-            #     raise ValueError(
-            #         f"For multiple controlnets: `image` must have the same length as the number of controlnets, but got {len(image)} images and {len(self.controlnet.nets)} ControlNets."
-            #     )
-            #
-            # for image_ in image:
-            #     self.check_image(image_, prompt, prompt_embeds)
-        else:
-            assert False
-
-        # Check `controlnet_conditioning_scale`
-        if (
-            isinstance(self.controlnet, ControlNetModel)
-            or is_compiled
-            and isinstance(self.controlnet._orig_mod, ControlNetModel)
-        ):
             if not isinstance(controlnet_conditioning_scale, float):
                 raise TypeError("For single controlnet: `controlnet_conditioning_scale` must be type `float`.")
         elif (
@@ -594,17 +562,13 @@ class HotshotXLControlNetPipeline(
             or is_compiled
             and isinstance(self.controlnet._orig_mod, MultiControlNetModel)
         ):
+            ...
             if isinstance(controlnet_conditioning_scale, list):
                 if any(isinstance(i, list) for i in controlnet_conditioning_scale):
                     raise ValueError("A single batch of multiple conditionings are supported at the moment.")
-            elif isinstance(controlnet_conditioning_scale, list) and len(controlnet_conditioning_scale) != len(
-                self.controlnet.nets
-            ):
-                raise ValueError(
-                    "For multiple controlnets: When `controlnet_conditioning_scale` is specified as `list`, it must have"
-                    " the same length as the number of controlnets"
-                )
         else:
+            assert False
+
             assert False
 
         if not isinstance(control_guidance_start, (tuple, list)):
@@ -655,11 +619,7 @@ class HotshotXLControlNetPipeline(
                 f"image must be passed and be one of PIL image, numpy array, torch tensor, list of PIL images, list of numpy arrays or list of torch tensors, but is {type(image)}"
             )
 
-        if image_is_pil:
-            image_batch_size = 1
-        else:
-            image_batch_size = len(image)
-
+        image_batch_size = 1 if image_is_pil else len(image)
         if prompt is not None and isinstance(prompt, str):
             prompt_batch_size = 1
         elif prompt is not None and isinstance(prompt, list):
@@ -667,7 +627,7 @@ class HotshotXLControlNetPipeline(
         elif prompt_embeds is not None:
             prompt_batch_size = prompt_embeds.shape[0]
 
-        if image_batch_size != 1 and image_batch_size != prompt_batch_size:
+        if image_batch_size not in [1, prompt_batch_size]:
             raise ValueError(
                 f"If image batch size is not 1, image batch size must be same as prompt batch size. image batch size: {image_batch_size}, prompt batch size: {prompt_batch_size}"
             )

@@ -300,9 +300,7 @@ def parse_args():
 
     parser.add_argument("--snr_gamma", action="store_true")
 
-    args = parser.parse_args()
-
-    return args
+    return parser.parse_args()
 
 
 def add_time_ids(
@@ -948,7 +946,7 @@ def main():
             logs[key] = val
 
         progress_bar.set_postfix(**logs)
-        progress_bar.set_description_str("Progress:" + pr)
+        progress_bar.set_description_str(f"Progress:{pr}")
         accelerator.log(logs, step=global_step)
 
         if accelerator.is_main_process \

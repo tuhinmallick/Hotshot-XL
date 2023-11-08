@@ -447,8 +447,10 @@ class HotshotXLPipeline(DiffusionPipeline, FromSingleFileMixin, LoraLoaderMixin)
         if height % 8 != 0 or width % 8 != 0:
             raise ValueError(f"`height` and `width` have to be divisible by 8 but are {height} and {width}.")
 
-        if (callback_steps is None) or (
-            callback_steps is not None and (not isinstance(callback_steps, int) or callback_steps <= 0)
+        if (
+            callback_steps is None
+            or not isinstance(callback_steps, int)
+            or callback_steps <= 0
         ):
             raise ValueError(
                 f"`callback_steps` has to be a positive integer but is {callback_steps} of type"
@@ -847,14 +849,13 @@ class HotshotXLPipeline(DiffusionPipeline, FromSingleFileMixin, LoraLoaderMixin)
                     enable_temporal_attentions= video_length > 1
                 )[0]
 
-                # perform guidance
                 if do_classifier_free_guidance:
                     noise_pred_uncond, noise_pred_text = noise_pred.chunk(2)
                     noise_pred = noise_pred_uncond + guidance_scale * (noise_pred_text - noise_pred_uncond)
 
-                if do_classifier_free_guidance and guidance_rescale > 0.0:
-                    # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
-                    noise_pred = rescale_noise_cfg(noise_pred, noise_pred_text, guidance_rescale=guidance_rescale)
+                    if guidance_rescale > 0.0:
+                        # Based on 3.4. in https://arxiv.org/pdf/2305.08891.pdf
+                        noise_pred = rescale_noise_cfg(noise_pred, noise_pred_text, guidance_rescale=guidance_rescale)
 
                 # compute the previous noisy sample x_t -> x_t-1
                 latents = self.scheduler.step(noise_pred, t, latents, **extra_step_kwargs, return_dict=False)[0]
@@ -894,10 +895,7 @@ class HotshotXLPipeline(DiffusionPipeline, FromSingleFileMixin, LoraLoaderMixin)
         if output_type == "tensor":
             video = torch.from_numpy(video)
 
-        if not return_dict:
-            return video
-
-        return HotshotPipelineXLOutput(videos=video)
+        return video if not return_dict else HotshotPipelineXLOutput(videos=video)
 
         #
         # # Offload last model to CPU
@@ -921,8 +919,9 @@ class HotshotXLPipeline(DiffusionPipeline, FromSingleFileMixin, LoraLoaderMixin)
         )
         self.load_lora_into_unet(state_dict, network_alphas=network_alphas, unet=self.unet)
 
-        text_encoder_state_dict = {k: v for k, v in state_dict.items() if "text_encoder." in k}
-        if len(text_encoder_state_dict) > 0:
+        if text_encoder_state_dict := {
+            k: v for k, v in state_dict.items() if "text_encoder." in k
+        }:
             self.load_lora_into_text_encoder(
                 text_encoder_state_dict,
                 network_alphas=network_alphas,
@@ -931,8 +930,9 @@ class HotshotXLPipeline(DiffusionPipeline, FromSingleFileMixin, LoraLoaderMixin)
                 lora_scale=self.lora_scale,
             )
 
-        text_encoder_2_state_dict = {k: v for k, v in state_dict.items() if "text_encoder_2." in k}
-        if len(text_encoder_2_state_dict) > 0:
+        if text_encoder_2_state_dict := {
+            k: v for k, v in state_dict.items() if "text_encoder_2." in k
+        }:
             self.load_lora_into_text_encoder(
                 text_encoder_2_state_dict,
                 network_alphas=network_alphas,
@@ -979,11 +979,10 @@ class HotshotXLPipeline(DiffusionPipeline, FromSingleFileMixin, LoraLoaderMixin)
         video_length = latents.shape[2]
         latents = 1 / self.vae.config.scaling_factor * latents
         latents = rearrange(latents, "b c f h w -> (b f) c h w")
-        # video = self.vae.decode(latents).sample
-        video = []
-        for frame_idx in tqdm(range(latents.shape[0])):
-            video.append(self.vae.decode(
-                latents[frame_idx:frame_idx+1]).sample)
+        video = [
+            self.vae.decode(latents[frame_idx : frame_idx + 1]).sample
+            for frame_idx in tqdm(range(latents.shape[0]))
+        ]
         video = torch.cat(video)
         video = rearrange(video, "(b f) c h w -> b c f h w", f=video_length)
         video = (video / 2.0 + 0.5).clamp(0, 1)

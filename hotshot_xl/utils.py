@@ -86,9 +86,7 @@ def scale_aspect_fill(img, new_width, new_height):
     right = (resize_width + new_width) / 2
     bottom = (resize_height + new_height) / 2
 
-    img_cropped = img_resized.crop((left, top, right, bottom))
-
-    return img_cropped
+    return img_resized.crop((left, top, right, bottom))
 
 def extract_gif_frames_from_midpoint(image: Union[str, PIL.Image.Image], fps: int=8, target_duration: int=1000) -> list:
     # Load the GIF
@@ -110,20 +108,14 @@ def extract_gif_frames_from_midpoint(image: Union[str, PIL.Image.Image], fps: in
                 estimated_frame_time = frame_info_duration
 
     if estimated_frame_time is None:
-        if len(frames) <= 16:
-            # assume it's 8fps
-            estimated_frame_time = 1000 // 8
-        else:
-            # assume it's 15 fps
-            estimated_frame_time = 70
-
+        estimated_frame_time = 1000 // 8 if len(frames) <= 16 else 70
     if len(frames) < fps:
         raise ValueError(f"fps of {fps} is too small for this gif as it only has {len(frames)} frames.")
 
     skip = len(frames) // fps
     upper_bound_index = len(frames) - 1
 
-    best_indices = [x for x in range(0, len(frames), skip)][:fps]
+    best_indices = list(range(0, len(frames), skip))[:fps]
     offset = int(upper_bound_index - best_indices[-1]) // 2
     best_indices = [x + offset for x in best_indices]
     best_duration = (best_indices[-1] - best_indices[0]) * estimated_frame_time
@@ -135,7 +127,7 @@ def extract_gif_frames_from_midpoint(image: Union[str, PIL.Image.Image], fps: in
         if skip == 0:
             break
 
-        indices = [x for x in range(0, len(frames), skip)][:fps]
+        indices = list(range(0, len(frames), skip))[:fps]
 
         # center the indices, so we sample the middle of the gif...
         offset = int(upper_bound_index - indices[-1]) // 2
