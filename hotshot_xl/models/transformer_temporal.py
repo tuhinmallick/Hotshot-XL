@@ -188,5 +188,4 @@ class TransformerBlock(nn.Module):
         norm_hidden_states = self.ff_norm(hidden_states)
         hidden_states = self.ff(norm_hidden_states) + hidden_states
 
-        output = hidden_states
-        return output
+        return hidden_states

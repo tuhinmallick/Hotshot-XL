@@ -110,8 +110,7 @@ def main():
     if args.gif and not args.control_type:
         print("warning: gif was specified but no control type was specified. gif will be ignored.")
 
-    output_dir = os.path.dirname(args.output)
-    if output_dir:
+    if output_dir := os.path.dirname(args.output):
         os.makedirs(output_dir, exist_ok=True)
 
     device = torch.device("cuda")
@@ -126,13 +125,13 @@ def main():
 
     data_type = torch.float32
 
-    if args.precision == 'f16':
+    if args.precision == 'bf16':
+        data_type = torch.bfloat16
+
+    elif args.precision == 'f16':
         data_type = torch.half
     elif args.precision == 'f32':
         data_type = torch.float32
-    elif args.precision == 'bf16':
-        data_type = torch.bfloat16
-
     pipe_line_args = {
         "torch_dtype": data_type,
         "use_safetensors": True
@@ -151,13 +150,9 @@ def main():
 
         unet = UNet3DConditionModel.from_pretrained_spatial(args.spatial_unet_base).to(device, dtype=data_type)
 
-        temporal_layers = {}
         unet_3d_sd = unet_3d.state_dict()
 
-        for k, v in unet_3d_sd.items():
-            if 'temporal' in k:
-                temporal_layers[k] = v
-
+        temporal_layers = {k: v for k, v in unet_3d_sd.items() if 'temporal' in k}
         unet.load_state_dict(temporal_layers, strict=False)
 
         pipe_line_args['unet'] = unet
@@ -174,18 +169,18 @@ def main():
     SchedulerClass = SCHEDULERS[args.scheduler]
     if SchedulerClass is not None:
         pipe.scheduler = SchedulerClass.from_config(pipe.scheduler.config)
- 
+
     if args.xformers:
         pipe.enable_xformers_memory_efficient_attention()
 
     generator = torch.Generator().manual_seed(args.seed) if args.seed else None
 
     autocast_type = None
-    if args.autocast == 'f16':
-        autocast_type = torch.half
-    elif args.autocast == 'bf16':
+    if args.autocast == 'bf16':
         autocast_type = torch.bfloat16
 
+    elif args.autocast == 'f16':
+        autocast_type = torch.half
     if type(pipe) is HotshotXLControlNetPipeline:
         kwargs = {}
     else:
